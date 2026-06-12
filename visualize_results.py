@@ -1,12 +1,6 @@
 """
 Visualization script for causal world-model drift experiments.
-
-Produces publication-quality figures following academic paper style
-(white bg, serif fonts, minimal gridlines, clean axes).
-
-Usage:
-    python visualize_results.py
-    python visualize_results.py --results-dir results/ --output-dir figures/
+Academic paper style: despined axes, no gridlines, serif fonts, minimal aesthetic.
 """
 
 import argparse
@@ -23,12 +17,12 @@ import seaborn as sns
 
 
 # ---------------------------------------------------------------------------
-# Style & constants
+# Constants
 # ---------------------------------------------------------------------------
 
 MODEL_ORDER = ["gpt-4o-mini", "gpt-5.5", "claude-haiku", "claude-sonnet", "claude-opus"]
 MODEL_LABELS = {
-    "gpt-4o-mini": "GPT-4o-mini",
+    "gpt-4o-mini": "GPT-4o\nmini",
     "gpt-5.5": "GPT-5.5",
     "claude-haiku": "Claude\nHaiku",
     "claude-sonnet": "Claude\nSonnet",
@@ -49,30 +43,19 @@ CONDITION_LABELS = {
     "h2_sycophantic": "Sycophantic",
     "h3_neutral_persona": "Neutral",
 }
-
-# Muted academic palette
-PAL = {
-    "blue": "#4C72B0",
-    "orange": "#DD8452",
-    "red": "#C44E52",
-    "green": "#55A868",
-    "purple": "#8172B3",
-    "gray": "#999999",
-}
-
 CONDITION_COLORS = {
-    "h0_baseline": PAL["blue"],
-    "h1_false_belief": PAL["orange"],
-    "h2_sycophantic": PAL["red"],
-    "h3_neutral_persona": PAL["green"],
+    "h0_baseline": "#1f77b4",
+    "h1_false_belief": "#ff7f0e",
+    "h2_sycophantic": "#d62728",
+    "h3_neutral_persona": "#2ca02c",
 }
 
 MODEL_COLORS = {
-    "gpt-4o-mini": PAL["blue"],
-    "gpt-5.5": PAL["orange"],
-    "claude-haiku": PAL["green"],
-    "claude-sonnet": PAL["red"],
-    "claude-opus": PAL["purple"],
+    "gpt-4o-mini": "#1f77b4",
+    "gpt-5.5": "#ff7f0e",
+    "claude-haiku": "#2ca02c",
+    "claude-sonnet": "#d62728",
+    "claude-opus": "#9467bd",
 }
 
 SCENARIO_LABELS = {
@@ -92,42 +75,43 @@ CATEGORY_ORDER = [
 ]
 CATEGORY_LABELS = {
     "edge": "Edge",
-    "ancestry": "Ancestry",
     "intervention": "Intervention",
     "intervention_hold": "Interv. (hold)",
     "d_separation": "d-Sep.",
     "confounder": "Confounder",
     "mediation": "Mediation",
-    "only_indirect": "Only Indirect",
 }
 
 
 def setup_style():
     plt.rcParams.update({
         "font.family": "serif",
-        "font.serif": ["Times New Roman", "Computer Modern Roman", "DejaVu Serif"],
+        "font.serif": ["Computer Modern Roman", "Times New Roman", "DejaVu Serif"],
         "mathtext.fontset": "cm",
-        "font.size": 9,
-        "axes.labelsize": 10,
-        "axes.titlesize": 10,
-        "xtick.labelsize": 8,
-        "ytick.labelsize": 8,
-        "legend.fontsize": 8,
+        "font.size": 8,
+        "axes.labelsize": 9,
+        "axes.titlesize": 9,
+        "xtick.labelsize": 7,
+        "ytick.labelsize": 7,
+        "legend.fontsize": 7,
+        "legend.frameon": False,
+        "axes.spines.top": False,
+        "axes.spines.right": False,
         "axes.linewidth": 0.6,
         "axes.grid": False,
         "axes.facecolor": "white",
-        "axes.edgecolor": "#333333",
+        "axes.edgecolor": "black",
         "figure.facecolor": "white",
         "figure.dpi": 300,
         "savefig.dpi": 300,
         "savefig.bbox": "tight",
-        "savefig.pad_inches": 0.05,
+        "savefig.pad_inches": 0.03,
         "xtick.direction": "out",
         "ytick.direction": "out",
-        "xtick.major.size": 3,
-        "ytick.major.size": 3,
-        "xtick.major.width": 0.6,
-        "ytick.major.width": 0.6,
+        "xtick.major.size": 2.5,
+        "ytick.major.size": 2.5,
+        "xtick.major.width": 0.5,
+        "ytick.major.width": 0.5,
         "lines.linewidth": 1.5,
     })
 
@@ -137,7 +121,6 @@ def setup_style():
 # ---------------------------------------------------------------------------
 
 def load_all_results(results_root: str) -> pd.DataFrame:
-    """Load and deduplicate all raw_results.jsonl files."""
     all_rows = []
     for path in sorted(Path(results_root).glob("*/raw_results.jsonl")):
         timestamp = path.parent.name
@@ -172,11 +155,7 @@ def load_all_results(results_root: str) -> pd.DataFrame:
 # Drift computation
 # ---------------------------------------------------------------------------
 
-def compute_drift_df(
-    df: pd.DataFrame,
-    baseline: str = "h0_baseline",
-    target: str = "h2_sycophantic",
-) -> pd.DataFrame:
+def compute_drift_df(df, baseline="h0_baseline", target="h2_sycophantic"):
     base = df[df["condition"] == baseline].set_index(
         ["model", "scenario_name", "question_id"]
     )[["model_answer", "gt_answer", "question_level", "question_category", "correct"]].rename(
@@ -187,11 +166,10 @@ def compute_drift_df(
     )[["model_answer", "correct"]].rename(
         columns={"model_answer": "target_answer", "correct": "target_correct"}
     )
-
     merged = base.join(tgt, how="inner").reset_index()
     merged["flipped"] = merged["baseline_answer"] != merged["target_answer"]
 
-    def classify_flip(row):
+    def classify(row):
         if not row["flipped"]:
             return "no_flip"
         if row["baseline_correct"] and not row["target_correct"]:
@@ -200,94 +178,88 @@ def compute_drift_df(
             return "wrong_to_correct"
         return "wrong_to_wrong"
 
-    merged["flip_direction"] = merged.apply(classify_flip, axis=1)
+    merged["flip_direction"] = merged.apply(classify, axis=1)
     return merged
 
 
 # ---------------------------------------------------------------------------
-# Plot 1: Accuracy by Model x Condition (3-panel: overall, surface, structural)
+# Fig 1: Accuracy (3-panel: overall, surface, structural)
 # ---------------------------------------------------------------------------
 
-def plot_accuracy_by_model_condition(df: pd.DataFrame, output_path: str):
+def plot_accuracy(df, output_path):
     models = [m for m in MODEL_ORDER if m in df["model"].unique()]
-    n_models = len(models)
-    n_conds = len(CONDITION_ORDER)
+    n = len(models)
 
-    fig, axes = plt.subplots(1, 3, figsize=(13, 3.2))
-    titles = ["(a) Overall Accuracy", "(b) Surface (Type 1)", "(c) Structural (Type 2)"]
-    filters = [None, "surface", "structural"]
+    fig, axes = plt.subplots(1, 3, figsize=(7, 2.0))
 
-    for ax, title, level_filter in zip(axes, titles, filters):
-        sub = df if level_filter is None else df[df["question_level"] == level_filter]
+    for ax, (title, filt) in zip(axes, [
+        ("(a) Overall", None),
+        ("(b) Surface (Type 1)", "surface"),
+        ("(c) Structural (Type 2)", "structural"),
+    ]):
+        sub = df if filt is None else df[df["question_level"] == filt]
         acc = sub.groupby(["model", "condition"])["correct"].mean().reset_index()
-        acc.columns = ["model", "condition", "accuracy"]
 
-        bar_width = 0.17
-        x = np.arange(n_models)
-
+        w = 0.16
+        x = np.arange(n)
         for i, cond in enumerate(CONDITION_ORDER):
-            vals = []
-            for m in models:
-                v = acc[(acc["model"] == m) & (acc["condition"] == cond)]["accuracy"]
-                vals.append(v.values[0] if len(v) > 0 else 0)
-            offset = (i - n_conds / 2 + 0.5) * bar_width
-            ax.bar(
-                x + offset, vals, bar_width,
-                label=CONDITION_LABELS[cond],
-                color=CONDITION_COLORS[cond],
-                edgecolor="white", linewidth=0.3,
-            )
+            vals = [
+                acc.loc[(acc["model"] == m) & (acc["condition"] == cond), "correct"].values
+                for m in models
+            ]
+            vals = [v[0] if len(v) > 0 else 0 for v in vals]
+            ax.bar(x + (i - 1.5) * w, vals, w,
+                   color=CONDITION_COLORS[cond], label=CONDITION_LABELS[cond],
+                   edgecolor=CONDITION_COLORS[cond], linewidth=0)
 
         ax.set_xticks(x)
-        ax.set_xticklabels([MODEL_LABELS.get(m, m) for m in models], fontsize=7)
-        ax.set_ylim(0.35, 1.08)
-        ax.axhline(0.5, color=PAL["gray"], linestyle="--", linewidth=0.6, alpha=0.5)
-        ax.set_title(title, fontsize=9, fontweight="bold")
+        ax.set_xticklabels([MODEL_LABELS[m] for m in models], fontsize=5.5)
+        ax.set_ylim(0.38, 1.04)
+        ax.axhline(0.5, color="#aaaaaa", linestyle="--", linewidth=0.5)
+        ax.set_title(title, fontsize=8)
         if ax == axes[0]:
             ax.set_ylabel("Accuracy")
 
-    handles, labels = axes[0].get_legend_handles_labels()
-    fig.legend(handles, labels, loc="upper center", ncol=n_conds,
-               fontsize=8, frameon=False, bbox_to_anchor=(0.5, 1.02))
-    fig.tight_layout(rect=[0, 0, 1, 0.93])
+    h, l = axes[0].get_legend_handles_labels()
+    fig.legend(h, l, loc="upper center", ncol=4, fontsize=6.5,
+              frameon=False, bbox_to_anchor=(0.5, 1.06))
+    fig.tight_layout(rect=[0, 0, 1, 0.94])
     fig.savefig(output_path)
     plt.close(fig)
     print(f"  Saved: {output_path}")
 
 
 # ---------------------------------------------------------------------------
-# Plot 2: Drift Heatmap
+# Fig 2: Drift heatmap
 # ---------------------------------------------------------------------------
 
-def plot_drift_heatmap(df: pd.DataFrame, output_path: str):
+def plot_drift_heatmap(df, output_path):
     drift = compute_drift_df(df)
     pivot = drift.groupby(["model", "scenario_name"])["flipped"].mean().reset_index()
-    pivot.columns = ["model", "scenario", "drift_rate"]
 
     models = [m for m in MODEL_ORDER if m in pivot["model"].unique()]
-    scenarios = sorted(pivot["scenario"].unique())
+    scenarios = sorted(pivot["scenario_name"].unique())
 
-    matrix = pd.DataFrame(index=models, columns=scenarios, dtype=float).fillna(0)
+    matrix = pd.DataFrame(0.0, index=models, columns=scenarios)
     for _, row in pivot.iterrows():
         if row["model"] in models:
-            matrix.loc[row["model"], row["scenario"]] = row["drift_rate"]
+            matrix.loc[row["model"], row["scenario_name"]] = row["flipped"]
 
-    matrix.index = [MODEL_LABELS_INLINE.get(m, m) for m in matrix.index]
+    matrix.index = [MODEL_LABELS_INLINE[m] for m in matrix.index]
     matrix.columns = [SCENARIO_LABELS.get(s, s) for s in matrix.columns]
 
-    fig, ax = plt.subplots(figsize=(max(6, len(scenarios) * 0.95), 2.8))
+    fig, ax = plt.subplots(figsize=(6, 2.2))
     sns.heatmap(
-        matrix.astype(float), annot=True, fmt=".2f",
-        cmap="YlOrRd", vmin=0, vmax=0.45,
-        linewidths=0.8, linecolor="white", ax=ax,
-        annot_kws={"fontsize": 7, "fontweight": "bold"},
-        cbar_kws={"label": "Drift Rate", "shrink": 0.8},
+        matrix, annot=True, fmt=".2f", cmap="YlOrRd",
+        vmin=0, vmax=0.4, linewidths=0.6, linecolor="white",
+        ax=ax, annot_kws={"fontsize": 6},
+        cbar_kws={"shrink": 0.7, "label": "Drift Rate",
+                  "aspect": 15},
     )
-    ax.set_title("Personalization-Induced Drift Rate (Sycophantic vs. Baseline)",
-                 fontsize=9, fontweight="bold", pad=8)
     ax.set_ylabel("")
     ax.set_xlabel("")
-    ax.tick_params(axis="x", rotation=35)
+    ax.tick_params(axis="x", rotation=40, labelsize=6.5)
+    ax.tick_params(axis="y", labelsize=7)
 
     fig.savefig(output_path)
     plt.close(fig)
@@ -295,122 +267,102 @@ def plot_drift_heatmap(df: pd.DataFrame, output_path: str):
 
 
 # ---------------------------------------------------------------------------
-# Plot 3: Surface vs Structural Drift
+# Fig 3 + 5 combined: Surface vs Structural + Flip direction (2-panel)
 # ---------------------------------------------------------------------------
 
-def plot_surface_vs_structural(df: pd.DataFrame, output_path: str):
+def plot_drift_analysis(df, output_path):
     drift = compute_drift_df(df)
     models = [m for m in MODEL_ORDER if m in drift["model"].unique()]
 
-    fig, ax = plt.subplots(figsize=(5.5, 3.2))
-    x = np.arange(len(models))
-    bar_width = 0.28
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(7, 2.2))
 
+    # --- Panel (a): Surface vs Structural ---
+    x = np.arange(len(models))
+    w = 0.3
     for i, (level, label, color) in enumerate([
-        ("surface", "Type 1 (Surface)", PAL["blue"]),
-        ("structural", "Type 2 (Structural)", PAL["red"]),
+        ("surface", "Type 1 (Surface)", "#1f77b4"),
+        ("structural", "Type 2 (Structural)", "#d62728"),
     ]):
         rates = []
         for m in models:
-            subset = drift[(drift["model"] == m) & (drift["question_level"] == level)]
-            rates.append(subset["flipped"].mean() if len(subset) > 0 else 0)
-        offset = (i - 0.5) * bar_width
-        bars = ax.bar(x + offset, rates, bar_width, label=label,
-                      color=color, edgecolor="white", linewidth=0.3)
+            s = drift[(drift["model"] == m) & (drift["question_level"] == level)]
+            rates.append(s["flipped"].mean() if len(s) > 0 else 0)
+        bars = ax1.bar(x + (i - 0.5) * w, rates, w, color=color,
+                       label=label, edgecolor=color, linewidth=0)
         for bar, v in zip(bars, rates):
-            if v > 0.005:
-                ax.text(bar.get_x() + bar.get_width() / 2, bar.get_height() + 0.003,
-                        f"{v:.2f}", ha="center", va="bottom", fontsize=6.5)
+            if v > 0.003:
+                ax1.text(bar.get_x() + bar.get_width() / 2, bar.get_height() + 0.002,
+                         f"{v:.2f}", ha="center", va="bottom", fontsize=5.5)
 
-    ax.set_xticks(x)
-    ax.set_xticklabels([MODEL_LABELS.get(m, m) for m in models], fontsize=7)
-    ax.set_ylabel("Drift Rate")
-    ax.set_ylim(0, max(0.25, ax.get_ylim()[1] * 1.18))
-    ax.legend(fontsize=7.5, frameon=False, loc="upper right")
-    ax.set_title("(a) Drift by Question Type", fontsize=9, fontweight="bold")
+    ax1.set_xticks(x)
+    ax1.set_xticklabels([MODEL_LABELS[m] for m in models], fontsize=5.5)
+    ax1.set_ylabel("Drift Rate")
+    ax1.set_ylim(0, max(0.22, ax1.get_ylim()[1] * 1.2))
+    ax1.legend(fontsize=6, loc="upper right")
+    ax1.set_title("(a) Drift by Question Type", fontsize=8)
 
-    fig.savefig(output_path)
-    plt.close(fig)
-    print(f"  Saved: {output_path}")
-
-
-# ---------------------------------------------------------------------------
-# Plot 4: Category Breakdown
-# ---------------------------------------------------------------------------
-
-def plot_category_vulnerability(df: pd.DataFrame, output_path: str):
-    drift = compute_drift_df(df)
-    models = [m for m in MODEL_ORDER if m in drift["model"].unique()]
-    categories = [c for c in CATEGORY_ORDER if c in drift["question_category"].unique()]
-
-    matrix = pd.DataFrame(index=models, columns=categories, dtype=float)
-    for m in models:
-        for c in categories:
-            subset = drift[(drift["model"] == m) & (drift["question_category"] == c)]
-            matrix.loc[m, c] = subset["flipped"].mean() if len(subset) > 0 else 0
-
-    matrix.index = [MODEL_LABELS_INLINE.get(m, m) for m in matrix.index]
-    matrix.columns = [CATEGORY_LABELS.get(c, c) for c in matrix.columns]
-
-    fig, ax = plt.subplots(figsize=(6.5, 2.8))
-    sns.heatmap(
-        matrix.astype(float), annot=True, fmt=".2f",
-        cmap="YlOrRd", vmin=0, vmax=0.35,
-        linewidths=0.8, linecolor="white", ax=ax,
-        annot_kws={"fontsize": 7, "fontweight": "bold"},
-        cbar_kws={"label": "Drift Rate", "shrink": 0.8},
-    )
-    ax.set_title("Drift Rate by Question Category (Sycophantic Condition)",
-                 fontsize=9, fontweight="bold", pad=8)
-    ax.set_ylabel("")
-
-    fig.savefig(output_path)
-    plt.close(fig)
-    print(f"  Saved: {output_path}")
-
-
-# ---------------------------------------------------------------------------
-# Plot 5: Flip Direction Analysis
-# ---------------------------------------------------------------------------
-
-def plot_flip_direction(df: pd.DataFrame, output_path: str):
-    drift = compute_drift_df(df)
+    # --- Panel (b): Flip direction ---
     flipped = drift[drift["flipped"]]
+    flip_models = [m for m in models if m in flipped["model"].unique()]
+    x2 = np.arange(len(flip_models))
 
-    if flipped.empty:
-        print("  No flips found -- skipping")
-        return
-
-    models = [m for m in MODEL_ORDER if m in flipped["model"].unique()]
-
-    fig, ax = plt.subplots(figsize=(5.5, 3.2))
-    x = np.arange(len(models))
-
-    directions = ["correct_to_wrong", "wrong_to_correct"]
-    dir_labels = {"correct_to_wrong": r"Correct $\rightarrow$ Wrong",
-                  "wrong_to_correct": r"Wrong $\rightarrow$ Correct"}
-    dir_colors = {"correct_to_wrong": PAL["red"], "wrong_to_correct": PAL["green"]}
-
-    bottoms = np.zeros(len(models))
-    for direction in directions:
+    bottoms = np.zeros(len(flip_models))
+    for direction, label, color in [
+        ("correct_to_wrong", r"Correct $\to$ Wrong", "#d62728"),
+        ("wrong_to_correct", r"Wrong $\to$ Correct", "#2ca02c"),
+    ]:
         counts = np.array([
             len(flipped[(flipped["model"] == m) & (flipped["flip_direction"] == direction)])
-            for m in models
+            for m in flip_models
         ], dtype=float)
-        ax.bar(x, counts, 0.5, bottom=bottoms,
-               label=dir_labels[direction], color=dir_colors[direction],
-               edgecolor="white", linewidth=0.3)
+        ax2.bar(x2, counts, 0.5, bottom=bottoms, color=color,
+                label=label, edgecolor=color, linewidth=0)
         for j, (c, b) in enumerate(zip(counts, bottoms)):
             if c > 0:
-                ax.text(x[j], b + c / 2, str(int(c)), ha="center", va="center",
-                        fontsize=7, fontweight="bold", color="white")
+                ax2.text(x2[j], b + c / 2, str(int(c)), ha="center", va="center",
+                         fontsize=5.5, color="white", fontweight="bold")
         bottoms += counts
 
-    ax.set_xticks(x)
-    ax.set_xticklabels([MODEL_LABELS.get(m, m) for m in models], fontsize=7)
-    ax.set_ylabel("Number of Flipped Answers")
-    ax.legend(fontsize=7.5, frameon=False, loc="upper right")
-    ax.set_title("(b) Direction of Answer Flips", fontsize=9, fontweight="bold")
+    ax2.set_xticks(x2)
+    ax2.set_xticklabels([MODEL_LABELS[m] for m in flip_models], fontsize=5.5)
+    ax2.set_ylabel("Flipped Answers")
+    ax2.legend(fontsize=6, loc="upper right")
+    ax2.set_title("(b) Flip Direction", fontsize=8)
+
+    fig.tight_layout()
+    fig.savefig(output_path)
+    plt.close(fig)
+    print(f"  Saved: {output_path}")
+
+
+# ---------------------------------------------------------------------------
+# Fig 4: Category breakdown heatmap
+# ---------------------------------------------------------------------------
+
+def plot_category_heatmap(df, output_path):
+    drift = compute_drift_df(df)
+    models = [m for m in MODEL_ORDER if m in drift["model"].unique()]
+    cats = [c for c in CATEGORY_ORDER if c in drift["question_category"].unique()]
+
+    matrix = pd.DataFrame(0.0, index=models, columns=cats)
+    for m in models:
+        for c in cats:
+            s = drift[(drift["model"] == m) & (drift["question_category"] == c)]
+            matrix.loc[m, c] = s["flipped"].mean() if len(s) > 0 else 0
+
+    matrix.index = [MODEL_LABELS_INLINE[m] for m in matrix.index]
+    matrix.columns = [CATEGORY_LABELS.get(c, c) for c in matrix.columns]
+
+    fig, ax = plt.subplots(figsize=(5, 2.2))
+    sns.heatmap(
+        matrix, annot=True, fmt=".2f", cmap="YlOrRd",
+        vmin=0, vmax=0.3, linewidths=0.6, linecolor="white",
+        ax=ax, annot_kws={"fontsize": 6},
+        cbar_kws={"shrink": 0.7, "label": "Drift Rate", "aspect": 15},
+    )
+    ax.set_ylabel("")
+    ax.tick_params(axis="y", labelsize=7)
+    ax.tick_params(axis="x", labelsize=6.5)
 
     fig.savefig(output_path)
     plt.close(fig)
@@ -418,53 +370,45 @@ def plot_flip_direction(df: pd.DataFrame, output_path: str):
 
 
 # ---------------------------------------------------------------------------
-# Plot 6: Condition Profiles (small multiples)
+# Fig 5: Condition profiles (small multiples)
 # ---------------------------------------------------------------------------
 
-def plot_condition_profiles(df: pd.DataFrame, output_path: str):
+def plot_condition_profiles(df, output_path):
     scenarios = sorted(df["scenario_name"].unique())
     models = [m for m in MODEL_ORDER if m in df["model"].unique()]
+    markers = dict(zip(MODEL_ORDER, ["o", "s", "^", "D", "v"]))
 
     n_cols = 4
     n_rows = (len(scenarios) + n_cols - 1) // n_cols
-    fig, axes = plt.subplots(n_rows, n_cols, figsize=(12, 2.8 * n_rows), sharey=True)
-    axes = axes.flatten() if n_rows > 1 else (axes if len(scenarios) > 1 else [axes])
-
-    model_markers = dict(zip(MODEL_ORDER, ["o", "s", "^", "D", "v"]))
+    fig, axes = plt.subplots(n_rows, n_cols, figsize=(7, 2.2 * n_rows), sharey=True)
+    axes_flat = axes.flatten()
 
     for idx, scenario in enumerate(scenarios):
-        ax = axes[idx]
+        ax = axes_flat[idx]
         for m in models:
             accs = []
             for cond in CONDITION_ORDER:
-                subset = df[(df["model"] == m) & (df["scenario_name"] == scenario) & (df["condition"] == cond)]
-                accs.append(subset["correct"].mean() if len(subset) > 0 else np.nan)
-            ax.plot(
-                range(len(CONDITION_ORDER)), accs,
-                marker=model_markers.get(m, "o"), markersize=4,
-                label=MODEL_LABELS_INLINE.get(m, m),
-                color=MODEL_COLORS.get(m), linewidth=1.2,
-            )
+                s = df[(df["model"] == m) & (df["scenario_name"] == scenario) & (df["condition"] == cond)]
+                accs.append(s["correct"].mean() if len(s) > 0 else np.nan)
+            ax.plot(range(4), accs, marker=markers[m], markersize=3,
+                    color=MODEL_COLORS[m], linewidth=1.0,
+                    label=MODEL_LABELS_INLINE[m])
 
-        ax.set_xticks(range(len(CONDITION_ORDER)))
-        ax.set_xticklabels(
-            [CONDITION_LABELS[c] for c in CONDITION_ORDER],
-            rotation=35, ha="right", fontsize=6.5,
-        )
-        ax.set_title(SCENARIO_LABELS.get(scenario, scenario), fontsize=8, fontweight="bold")
+        ax.set_xticks(range(4))
+        ax.set_xticklabels([CONDITION_LABELS[c] for c in CONDITION_ORDER],
+                           rotation=40, ha="right", fontsize=5)
+        ax.set_title(SCENARIO_LABELS.get(scenario, scenario), fontsize=7, fontweight="bold")
         ax.set_ylim(0.35, 1.05)
-        ax.axhline(0.5, color=PAL["gray"], linestyle="--", linewidth=0.5, alpha=0.4)
+        ax.axhline(0.5, color="#cccccc", linestyle="--", linewidth=0.4)
         if idx % n_cols == 0:
-            ax.set_ylabel("Accuracy", fontsize=8)
+            ax.set_ylabel("Accuracy", fontsize=7)
 
-    # Hide unused subplots
-    for idx in range(len(scenarios), len(axes)):
-        axes[idx].set_visible(False)
+    for idx in range(len(scenarios), len(axes_flat)):
+        axes_flat[idx].set_visible(False)
 
-    # Single legend
-    handles, labels = axes[0].get_legend_handles_labels()
-    fig.legend(handles, labels, loc="upper center", ncol=len(models),
-               fontsize=7.5, frameon=False, bbox_to_anchor=(0.5, 1.02))
+    h, l = axes_flat[0].get_legend_handles_labels()
+    fig.legend(h, l, loc="upper center", ncol=len(models),
+              fontsize=6, frameon=False, bbox_to_anchor=(0.5, 1.03))
     fig.tight_layout(rect=[0, 0, 1, 0.95])
     fig.savefig(output_path)
     plt.close(fig)
@@ -485,18 +429,15 @@ def main():
 
     print("Loading results...")
     df = load_all_results(args.results_dir)
-
     os.makedirs(args.output_dir, exist_ok=True)
 
     print("\nGenerating figures...")
-    plot_accuracy_by_model_condition(df, f"{args.output_dir}/fig1_accuracy_by_model_condition.pdf")
+    plot_accuracy(df, f"{args.output_dir}/fig1_accuracy.pdf")
     plot_drift_heatmap(df, f"{args.output_dir}/fig2_drift_heatmap.pdf")
-    plot_surface_vs_structural(df, f"{args.output_dir}/fig3_surface_vs_structural.pdf")
-    plot_category_vulnerability(df, f"{args.output_dir}/fig4_category_breakdown.pdf")
-    plot_flip_direction(df, f"{args.output_dir}/fig5_flip_direction.pdf")
-    plot_condition_profiles(df, f"{args.output_dir}/fig6_condition_profiles.pdf")
-
-    print(f"\nAll figures saved to {args.output_dir}/")
+    plot_drift_analysis(df, f"{args.output_dir}/fig3_drift_analysis.pdf")
+    plot_category_heatmap(df, f"{args.output_dir}/fig4_category_heatmap.pdf")
+    plot_condition_profiles(df, f"{args.output_dir}/fig5_condition_profiles.pdf")
+    print(f"\nDone. Figures in {args.output_dir}/")
 
 
 if __name__ == "__main__":
