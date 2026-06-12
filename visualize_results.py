@@ -85,9 +85,9 @@ CATEGORY_LABELS = {
 
 def setup_style():
     plt.rcParams.update({
+        "text.usetex": True,
         "font.family": "serif",
-        "font.serif": ["Computer Modern Roman", "Times New Roman", "DejaVu Serif"],
-        "mathtext.fontset": "cm",
+        "font.serif": ["Computer Modern"],
         "font.size": 8,
         "axes.labelsize": 9,
         "axes.titlesize": 9,
@@ -190,7 +190,7 @@ def plot_accuracy(df, output_path):
     models = [m for m in MODEL_ORDER if m in df["model"].unique()]
     n = len(models)
 
-    fig, axes = plt.subplots(1, 3, figsize=(7, 2.0))
+    fig, axes = plt.subplots(1, 3, figsize=(7.5, 2.0))
 
     for ax, (title, filt) in zip(axes, [
         ("(a) Overall", None),
