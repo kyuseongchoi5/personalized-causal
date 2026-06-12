@@ -44,10 +44,10 @@ CONDITION_LABELS = {
     "h3_neutral_persona": "Neutral",
 }
 CONDITION_COLORS = {
-    "h0_baseline": "#1f77b4",
-    "h1_false_belief": "#ff7f0e",
-    "h2_sycophantic": "#d62728",
-    "h3_neutral_persona": "#2ca02c",
+    "h0_baseline": "#6baed6",
+    "h1_false_belief": "#fdae6b",
+    "h2_sycophantic": "#fc9272",
+    "h3_neutral_persona": "#74c476",
 }
 
 MODEL_COLORS = {
@@ -90,6 +90,7 @@ def setup_style():
         "font.serif": ["Computer Modern"],
         "font.size": 8,
         "axes.labelsize": 9,
+        "axes.labelweight": "bold",
         "axes.titlesize": 9,
         "xtick.labelsize": 7,
         "ytick.labelsize": 7,
@@ -215,7 +216,7 @@ def plot_accuracy(df, output_path):
         ax.set_xticks(x)
         ax.set_xticklabels([MODEL_LABELS[m] for m in models], fontsize=5.5)
         ax.set_ylim(0.38, 1.04)
-        ax.axhline(0.5, color="#aaaaaa", linestyle="--", linewidth=0.5)
+        ax.axhline(0.5, color="black", linestyle="--", linewidth=0.7)
         ax.set_title(title, fontsize=8)
         if ax == axes[0]:
             ax.set_ylabel("Accuracy")
@@ -280,8 +281,8 @@ def plot_drift_analysis(df, output_path):
     x = np.arange(len(models))
     w = 0.3
     for i, (level, label, color) in enumerate([
-        ("surface", "Type 1 (Surface)", "#1f77b4"),
-        ("structural", "Type 2 (Structural)", "#d62728"),
+        ("surface", "Type 1 (Surface)", "#6baed6"),
+        ("structural", "Type 2 (Structural)", "#fc9272"),
     ]):
         rates = []
         for m in models:
@@ -308,8 +309,8 @@ def plot_drift_analysis(df, output_path):
 
     bottoms = np.zeros(len(flip_models))
     for direction, label, color in [
-        ("correct_to_wrong", r"Correct $\to$ Wrong", "#d62728"),
-        ("wrong_to_correct", r"Wrong $\to$ Correct", "#2ca02c"),
+        ("correct_to_wrong", r"Correct $\to$ Wrong", "#fc9272"),
+        ("wrong_to_correct", r"Wrong $\to$ Correct", "#74c476"),
     ]:
         counts = np.array([
             len(flipped[(flipped["model"] == m) & (flipped["flip_direction"] == direction)])
