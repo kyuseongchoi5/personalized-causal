@@ -85,9 +85,9 @@ CATEGORY_LABELS = {
 
 def setup_style():
     plt.rcParams.update({
-        "text.usetex": True,
-        "font.family": "serif",
-        "font.serif": ["Computer Modern"],
+        "text.usetex": False,
+        "font.family": "sans-serif",
+        "font.sans-serif": ["Helvetica", "Arial", "DejaVu Sans"],
         "font.size": 8,
         "axes.labelsize": 9,
         "axes.labelweight": "bold",
@@ -309,8 +309,8 @@ def plot_drift_analysis(df, output_path):
 
     bottoms = np.zeros(len(flip_models))
     for direction, label, color in [
-        ("correct_to_wrong", r"Correct $\to$ Wrong", "#fc9272"),
-        ("wrong_to_correct", r"Wrong $\to$ Correct", "#74c476"),
+        ("correct_to_wrong", "Correct → Wrong", "#fc9272"),
+        ("wrong_to_correct", "Wrong → Correct", "#74c476"),
     ]:
         counts = np.array([
             len(flipped[(flipped["model"] == m) & (flipped["flip_direction"] == direction)])
