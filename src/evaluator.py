@@ -46,10 +46,23 @@ def parse_yes_no(response: str) -> str:
         return "No"
     # Check first word
     first_word = text.split()[0] if text.split() else ""
-    if first_word.rstrip(".,!") == "yes":
+    if first_word.rstrip(".,!:") == "yes":
         return "Yes"
-    if first_word.rstrip(".,!") == "no":
+    if first_word.rstrip(".,!:") == "no":
         return "No"
+    # Check last word (model may explain then answer)
+    words = text.split()
+    if words:
+        last_word = words[-1].rstrip(".,!:")
+        if last_word == "yes":
+            return "Yes"
+        if last_word == "no":
+            return "No"
+    # Check for "the answer is yes/no" pattern
+    import re
+    answer_pattern = re.search(r'\b(answer|conclusion)\b.*?\b(yes|no)\b', text)
+    if answer_pattern:
+        return "Yes" if answer_pattern.group(2) == "yes" else "No"
     # Check if yes/no appears anywhere (last resort)
     has_yes = "yes" in text
     has_no = "no" in text
@@ -71,10 +84,17 @@ async def query_openai(
 ) -> str:
     from openai import AsyncOpenAI
     client = AsyncOpenAI()
+    # Newer models (gpt-5.5+) require different params
+    extra = {}
+    if model.startswith("gpt-5"):
+        extra["max_completion_tokens"] = 20
+        extra["reasoning_effort"] = "none"
+    else:
+        extra["max_tokens"] = 100
+        extra["temperature"] = temperature
     response = await client.chat.completions.create(
         model=model,
-        temperature=temperature,
-        max_tokens=10,
+        **extra,
         messages=[
             {"role": "system", "content": prompt.system_message},
             {"role": "user", "content": prompt.user_message},
@@ -92,7 +112,7 @@ async def query_anthropic(
     client = anthropic.AsyncAnthropic()
     response = await client.messages.create(
         model=model,
-        max_tokens=10,
+        max_tokens=100,
         temperature=temperature,
         system=prompt.system_message,
         messages=[
@@ -108,7 +128,10 @@ MODEL_CLIENTS = {
     "gpt-4o-mini": ("openai", "gpt-4o-mini"),
     "gpt-4.1": ("openai", "gpt-4.1"),
     "gpt-4.1-mini": ("openai", "gpt-4.1-mini"),
+    "gpt-4.1-nano": ("openai", "gpt-4.1-nano"),
+    "gpt-5.5": ("openai", "gpt-5.5"),
     # Anthropic models
+    "claude-opus": ("anthropic", "claude-opus-4-20250514"),
     "claude-sonnet": ("anthropic", "claude-sonnet-4-20250514"),
     "claude-haiku": ("anthropic", "claude-haiku-4-5-20251001"),
 }

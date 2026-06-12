@@ -187,6 +187,118 @@ SCENARIOS: list[CausalScenario] = [
             "Among Hollywood actors, talent and attractiveness are causally related",
         ],
     ),
+
+    # -----------------------------------------------------------------------
+    # Harder scenarios (5-7 nodes) for challenging frontier models
+    # -----------------------------------------------------------------------
+
+    CausalScenario(
+        name="climate_agriculture",
+        domain="environmental_economics",
+        edges=[
+            ("CO2Emissions", "GlobalTemperature"),
+            ("GlobalTemperature", "RainfallPattern"),
+            ("RainfallPattern", "CropYield"),
+            ("CropYield", "FoodPrice"),
+            ("EconomicPolicy", "CO2Emissions"),
+            ("EconomicPolicy", "FoodPrice"),
+        ],
+        description=(
+            "Environmental economists study how CO2 emissions affect global "
+            "temperature, rainfall, crop yields, and food prices, with "
+            "economic policy influencing both emissions and food prices."
+        ),
+        false_beliefs=[
+            "Food prices directly cause changes in CO2 emissions",
+            "Rainfall patterns are independent of global temperature",
+        ],
+    ),
+    CausalScenario(
+        name="gene_disease",
+        domain="genetics",
+        edges=[
+            ("GeneVariant", "ProteinLevel"),
+            ("ProteinLevel", "CellGrowth"),
+            ("CellGrowth", "TumorRisk"),
+            ("EnvironmentalExposure", "CellGrowth"),
+            ("EnvironmentalExposure", "TumorRisk"),
+        ],
+        description=(
+            "Geneticists study how a gene variant affects protein levels, "
+            "cell growth, and tumor risk, while environmental exposure "
+            "independently affects both cell growth and tumor risk."
+        ),
+        false_beliefs=[
+            "Tumor risk causes changes in protein levels",
+            "Gene variants directly cause tumor risk without any mediator",
+        ],
+    ),
+    CausalScenario(
+        name="social_media_mental_health",
+        domain="psychology",
+        edges=[
+            ("Loneliness", "SocialMediaUse"),
+            ("Loneliness", "Depression"),
+            ("SocialMediaUse", "SleepQuality"),
+            ("SleepQuality", "Depression"),
+            ("SocialMediaUse", "SocialComparison"),
+            ("SocialComparison", "SelfEsteem"),
+            ("SelfEsteem", "Depression"),
+        ],
+        description=(
+            "Psychologists study how loneliness drives social media use and "
+            "depression, while social media affects depression through two "
+            "pathways: sleep quality and social comparison via self-esteem."
+        ),
+        false_beliefs=[
+            "Social media use directly causes depression",
+            "Depression causes people to use more social media",
+        ],
+    ),
+    CausalScenario(
+        name="supply_chain",
+        domain="economics",
+        edges=[
+            ("OilPrice", "ManufacturingCost"),
+            ("OilPrice", "ShippingCost"),
+            ("ManufacturingCost", "RetailPrice"),
+            ("ShippingCost", "RetailPrice"),
+            ("RetailPrice", "ConsumerDemand"),
+            ("Tariff", "ManufacturingCost"),
+        ],
+        description=(
+            "Economists study how oil prices affect manufacturing and shipping "
+            "costs, which both feed into retail prices and consumer demand, "
+            "with tariffs independently affecting manufacturing costs."
+        ),
+        false_beliefs=[
+            "Consumer demand drives oil prices in this system",
+            "Shipping cost has no effect on retail price",
+        ],
+    ),
+    CausalScenario(
+        name="stress_performance",
+        domain="organizational_psychology",
+        edges=[
+            ("Workload", "Stress"),
+            ("Stress", "SleepDisruption"),
+            ("SleepDisruption", "CognitiveFunction"),
+            ("CognitiveFunction", "JobPerformance"),
+            ("Workload", "JobPerformance"),
+            ("JobPerformance", "ManagerEvaluation"),
+            ("Tenure", "ManagerEvaluation"),
+        ],
+        description=(
+            "Organizational psychologists study how workload causes stress, "
+            "which disrupts sleep and cognitive function, ultimately affecting "
+            "job performance. Workload also directly affects performance. "
+            "Manager evaluations depend on both performance and tenure."
+        ),
+        false_beliefs=[
+            "Manager evaluations cause changes in cognitive function",
+            "Stress directly affects job performance without going through sleep or cognition",
+        ],
+    ),
 ]
 
 
